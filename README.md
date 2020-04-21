@@ -1,2 +1,2 @@
 # PracticalMachineLearning
-Coursera project
+Coursera Practical Machine Learning final project
