@@ -1,0 +1,107 @@
+---
+title: "Practical Machine Learning Project"
+author: "Masami Y"
+date: "20 April 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, a goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+### Load libraries
+```{r loading library} 
+library(caret) 
+library(rpart) 
+library(RColorBrewer)
+library(rattle)
+library(randomForest)
+library(corrplot)
+library(gbm)
+library(e1071)
+``` 
+
+## Load and exploratory data analysis
+```{r train data}
+trainData <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"),header=TRUE)
+dim(trainData)
+head(trainData, 5)
+str(trainData)
+summary(trainData)
+```
+```{r test data}
+testData <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"),header=TRUE)
+dim(testData)
+```
+
+## Clean data
+## Train data
+```{r train set}
+indexColToRemove <- which(colSums(is.na(trainData) |trainData=="")>0.9*dim(trainData)[1]) 
+trainDataClean <- trainData[,-indexColToRemove]
+trainDataClean <- trainDataClean[,-c(1:7)]
+dim(trainDataClean)
+```
+## Test data
+```{r test set}
+indexTestColToRemove <- which(colSums(is.na(testData) |testData=="")>0.9*dim(testData)[1]) 
+testDataClean <- testData[,-indexTestColToRemove]
+testDataClean <- testDataClean[,-1]
+dim(testDataClean)
+```
+
+```{r clean Is it necessary?}
+set.seed(12345)
+inTrain1 <- createDataPartition(trainDataClean$classe, p=0.75, list=FALSE)
+Train1 <- trainDataClean[inTrain1,]
+Test1 <- trainDataClean[-inTrain1,]
+dim(Train1)
+```
+## Model building
+## Classification tree
+```{r classification tree}
+trControl <- trainControl(method="cv", number=5)
+model_CT <- train(classe~., data=Train1, method="rpart", trControl=trControl)
+fancyRpartPlot(model_CT$finalModel)
+trainpred <- predict(model_CT,newdata=Test1)
+
+confMatCT <- confusionMatrix(Test1$classe,trainpred)
+
+
+confMatCT$table
+confMatCT$overall[1]
+```
+## Random forests
+```{r random forests}
+model_RF <- train(classe~., data=Train1, method="rf", trControl=trControl, verbose=FALSE)
+print(model_RF)
+plot(model_RF,main="Accuracy of Random forest model by number of predictors")
+```
+
+
+```{r GBM}
+set.seed(12345)
+controlGBM <- trainControl(method = "repeatedcv", number = 5, repeats = 1)
+modGBM  <- train(classe ~ ., data=trainDataClean, method = "gbm", trControl = controlGBM, verbose = FALSE)
+modGBM$finalModel
+print(modGBM)
+```
+
+```{r prediction}
+predictGBM <- predict(modGBM, newdata=Test1)
+cmGBM <- confusionMatrix(Test1$classe, predictGBM)
+cmGBM$table
+cmGBM$overall[1]
+```
+
+## Conclusion
+```{r final}
+FinalTest <- predict(model_RF, newdata = testDataClean)
+FinalTest
+```
+
+
